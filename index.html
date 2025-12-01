@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Juego: Ordena los monigotes por tamaño</title>
+  <style>
+    :root{
+      --bg:#0f172a; --card:#0b1220; --accent:#7c3aed; --muted:#94a3b8; --success:#10b981;
+    }
+    *{box-sizing:border-box}
+    body{font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; margin:0; min-height:100vh; background:linear-gradient(180deg,var(--bg),#071024); color:#e6eef8; display:flex; align-items:center; justify-content:center; padding:28px}
+
+    .wrap{width:100%; max-width:980px; background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02)); border-radius:14px; padding:22px; box-shadow:0 8px 30px rgba(2,6,23,0.6)}
+    header{display:flex; align-items:center; justify-content:space-between; gap:16px}
+    h1{font-size:20px; margin:0}
+    p.lead{margin:6px 0 0; color:var(--muted); font-size:13px}
+
+    .game{display:grid; grid-template-columns: 1fr 320px; gap:20px; margin-top:18px}
+
+    /* board */
+    .board{background:rgba(255,255,255,0.02); padding:18px; border-radius:10px; min-height:300px}
+    .slots{display:flex; gap:12px; align-items:end; height:220px; padding:12px}
+    .slot{flex:1; background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00)); border:2px dashed rgba(255,255,255,0.04); border-radius:8px; min-width:60px; display:flex; align-items:center; justify-content:center; padding:8px; position:relative}
+    .slot.drag-over{border-color:rgba(124,58,237,0.8); box-shadow:0 6px 14px rgba(124,58,237,0.08) inset}
+    .slot.placeholder::after{content:"Arrastra aquí"; position:absolute; bottom:8px; font-size:11px; color:var(--muted)}
+
+    /* monigotes */
+    .monigote{touch-action:none; cursor:grab; user-select:none; display:inline-block}
+    .monigote.dragging{opacity:0.6; transform:scale(1.02); cursor:grabbing}
+
+    /* sidebar */
+    .sidebar{background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01)); padding:14px; border-radius:10px}
+    .controls{display:flex; gap:8px; margin-top:12px}
+    button{background:var(--card); border:1px solid rgba(255,255,255,0.03); color:inherit; padding:8px 10px; border-radius:8px; cursor:pointer}
+    button.primary{background:linear-gradient(90deg,var(--accent),#5b21b6); box-shadow:0 6px 18px rgba(92,33,182,0.16); border:none}
+    button.ghost{background:transparent; border:1px dashed rgba(255,255,255,0.04)}
+
+    .hint{font-size:13px; color:var(--muted); margin-top:8px}
+    .result{margin-top:12px; font-weight:600}
+    .good{color:var(--success)}
+
+    footer{margin-top:14px; font-size:12px; color:var(--muted)}
+
+    /* responsive */
+    @media (max-width:860px){.game{grid-template-columns:1fr;}.sidebar{order:2}}
+
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Ordena los monigotes por tamaño</h1>
+        <p class="lead">Arrastra los monigotes con el ratón a las casillas de la izquierda poniendo de menor a mayor.</p>
+      </div>
+      <div style="text-align:right;color:var(--muted);font-size:12px">Juego rápido • Sin librerías</div>
+    </header>
+
+    <div class="game">
+      <div class="board">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:13px;color:var(--muted)">Tablero</div>
+          <div style="font-size:12px;color:var(--muted)">Toca / arrastra para mover</div>
+        </div>
+
+        <div class="slots" id="slots" aria-label="Casillas para ordenar">
+          <!-- slots generados por JS -->
+        </div>
+
+        <div style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+          <div id="pool" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+            <!-- monigotes sueltos aquí -->
+          </div>
+        </div>
+
+      </div>
+
+      <aside class="sidebar">
+        <div style="font-size:14px; font-weight:600; margin-bottom:6px;">Tiempo: <span id="timer">00:00</span></div>
+        <div style="font-size:13px; font-weight:600">Controles</div>
+        <div class="controls">
+          <button id="shuffleBtn">Mezclar</button>
+          <button id="checkBtn" class="primary">Comprobar</button>
+          <button id="resetBtn" class="ghost">Reiniciar</button>
+        </div>
+
+        <div class="hint">Objetivo: coloca los monigotes de <strong>menor</strong> a <strong>mayor</strong> altura. Puedes arrastrarlos desde la fila de abajo o entre casillas.</div>
+
+        <div class="result" id="result"></div>
+
+        <div style="margin-top:10px">
+          <label style="font-size:13px;color:var(--muted)">Nº de monigotes:</label>
+          <select id="countSelect" style="margin-top:6px;padding:6px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:inherit">
+            <option value="3">3</option>
+            <option value="4" selected>4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+          </select>
+        </div>
+
+        <footer>Si quieres, pide que cambie los colores, número de monigotes o las reglas.</footer>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    // Datos de monigotes: cada uno tiene un 'size' numérico (alto absoluto)
+    const baseMonigotes = [
+      {id: 'm1', size: 60, color:'#f97316'},
+      {id: 'm2', size: 90, color:'#06b6d4'},
+      {id: 'm3', size: 40, color:'#60a5fa'},
+      {id: 'm4', size: 120, color:'#34d399'},
+      {id: 'm5', size: 80, color:'#e879f9'},
+      {id: 'm6', size: 100, color:'#f43f5e'}
+    ];
+
+    const slotsEl = document.getElementById('slots');
+    const poolEl = document.getElementById('pool');
+    const shuffleBtn = document.getElementById('shuffleBtn');
+    const checkBtn = document.getElementById('checkBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const resultEl = document.getElementById('result');
+    const countSelect = document.getElementById('countSelect');
+
+    let monigotes = [];
+    let timerInterval = null;
+    let secondsElapsed = 0;
+    let draggingId = null;
+
+    function makeMonigoteNode(data){
+      // Representación SVG simple: cuerpo + cabeza, escalable por 'size'
+      const wrapper = document.createElement('div');
+      wrapper.className = 'monigote';
+      wrapper.draggable = true;
+      wrapper.dataset.id = data.id;
+      wrapper.dataset.size = data.size; // para comparar
+      wrapper.title = `Tamaño: ${data.size}`;
+
+      // tamaño visual: map size 30..130 -> scale
+      const h = data.size;
+      const svg = `
+        <svg width="80" height="${Math.max(48, h)}" viewBox="0 0 80 ${Math.max(48,h)}" xmlns="http://www.w3.org/2000/svg">
+          <g transform="translate(0,${Math.max(0, Math.max(48,h)-h)})">
+            <ellipse cx="40" cy="${h-10}" rx="24" ry="10" fill="rgba(0,0,0,0.12)" />
+            <rect x="22" y="0" width="36" height="${h-30}" rx="18" fill="${data.color}" />
+            <circle cx="40" cy="${Math.max(10, Math.floor((h-30)/2))}" r="12" fill="#fff" />
+            <circle cx="36" cy="${Math.max(8, Math.floor((h-30)/2)-2)}" r="2" fill="#111" />
+            <circle cx="44" cy="${Math.max(8, Math.floor((h-30)/2)-2)}" r="2" fill="#111" />
+          </g>
+        </svg>
+      `;
+      wrapper.innerHTML = svg;
+
+      // events for native drag & drop
+      wrapper.addEventListener('dragstart', (e)=>{
+        draggingId = data.id;
+        wrapper.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', data.id);
+        // custom drag image to avoid default ghost
+        const crt = wrapper.cloneNode(true);
+        crt.style.position='absolute'; crt.style.top='-1000px'; crt.style.left='-1000px';
+        document.body.appendChild(crt);
+        e.dataTransfer.setDragImage(crt, 30, 30);
+        setTimeout(()=>document.body.removeChild(crt),0);
+      });
+      wrapper.addEventListener('dragend', ()=>{ draggingId = null; wrapper.classList.remove('dragging'); });
+
+      return wrapper;
+    }
+
+    function createSlots(n){
+      slotsEl.innerHTML='';
+      for(let i=0;i<n;i++){
+        const s = document.createElement('div');
+        s.className = 'slot placeholder';
+        s.dataset.index = i;
+        s.addEventListener('dragover', (e)=>{ e.preventDefault(); s.classList.add('drag-over'); });
+        s.addEventListener('dragleave', ()=>{ s.classList.remove('drag-over'); });
+        s.addEventListener('drop', (e)=>{ e.preventDefault(); s.classList.remove('drag-over'); const id = e.dataTransfer.getData('text/plain'); placeMonigoteInSlot(id, s); });
+        slotsEl.appendChild(s);
+      }
+    }
+
+    function placeMonigoteInSlot(id, slotEl){
+      // remove from wherever it was
+      const node = document.querySelector(`[data-id='${id}']`);
+      if(!node) return;
+      // if slot already has a child, swap them
+      if(slotEl.firstElementChild){
+        const existing = slotEl.firstElementChild;
+        // put existing back to pool
+        poolEl.appendChild(existing);
+      }
+      slotEl.classList.remove('placeholder');
+      slotEl.appendChild(node);
+    }
+
+    function shuffleArray(arr){
+      const a = arr.slice();
+      for(let i=a.length-1;i>0;i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [a[i],a[j]]=[a[j],a[i]];
+      }
+      return a;
+    }
+
+    function startTimer(){
+      clearInterval(timerInterval);
+      secondsElapsed = 0;
+      updateTimerDisplay();
+      timerInterval = setInterval(()=>{
+        secondsElapsed++;
+        updateTimerDisplay();
+      },1000);
+    }
+
+    function updateTimerDisplay(){
+      const m = String(Math.floor(secondsElapsed/60)).padStart(2,'0');
+      const s = String(secondsElapsed%60).padStart(2,'0');
+      document.getElementById('timer').textContent = `${m}:${s}`;
+    }
+
+    function render(){
+      // build monigotes subset depending on count
+      const count = Number(countSelect.value);
+      monigotes = baseMonigotes.slice(0, count);
+      // but to make sizes varied, sort them by size ascending for reference
+      const correctOrder = monigotes.slice().sort((a,b)=>a.size-b.size);
+
+      // create slots
+      createSlots(count);
+
+      // pool: shuffled
+      poolEl.innerHTML='';
+      const shuffled = shuffleArray(monigotes);
+      shuffled.forEach(m=>{
+        const node = makeMonigoteNode(m);
+        poolEl.appendChild(node);
+      });
+
+      // allow dragging between pool and slots
+      // also allow dragging from one slot to another by letting slot accept drops
+      resultEl.textContent='';
+      startTimer();
+    }
+
+    shuffleBtn.addEventListener('click', ()=>{
+      render();
+    });
+
+    resetBtn.addEventListener('click', ()=>{
+      // move all monigotes from slots back to pool and shuffle
+      render();
+    });
+
+    countSelect.addEventListener('change', ()=>{ render(); });
+
+    checkBtn.addEventListener('click', ()=>{
+      // collect order from slots left-to-right; missing slots considered wrong
+      const slotNodes = Array.from(document.querySelectorAll('.slot'));
+      const placed = slotNodes.map(s=> s.firstElementChild ? s.firstElementChild.dataset.id : null);
+      // build correct order IDs
+      const count = Number(countSelect.value);
+      const used = baseMonigotes.slice(0,count);
+      const correct = used.slice().sort((a,b)=>a.size-b.size).map(x=>x.id);
+
+      // check equality
+      let allPlaced = true;
+      for(const p of placed) if(!p) allPlaced=false;
+      if(!allPlaced){ resultEl.textContent='Coloca todos los monigotes antes de comprobar.'; resultEl.className='result'; return; }
+
+      const ok = placed.every((id, i)=> id === correct[i]);
+      if(ok){ resultEl.textContent='¡Correcto! Has ordenado los monigotes por tamaño.'; resultEl.className='result good'; }
+      else{
+        resultEl.textContent='No es correcto. Puedes intentarlo de nuevo o usar "Mezclar" para reiniciar.'; resultEl.className='result';
+        // highlight incorrect slots briefly
+        slotNodes.forEach((s,i)=>{
+          if(s.firstElementChild && s.firstElementChild.dataset.id !== correct[i]){
+            s.style.boxShadow = '0 6px 18px rgba(244,63,94,0.12) inset';
+            setTimeout(()=> s.style.boxShadow = '', 900);
+          }
+        });
+      }
+    });
+
+    // allow dragging from pool to slots and between slots done in placeMonigoteInSlot
+    // initial render
+    render();
+
+    // Extra: allow clicking on a monigote to pick it up with keyboard-like behavior
+    document.addEventListener('click', (e)=>{
+      const target = e.target.closest('.monigote');
+      if(!target) return;
+      // if clicked inside a slot -> remove to pool
+      const parentSlot = target.parentElement.classList && target.parentElement.classList.contains('slot');
+      if(parentSlot){ poolEl.appendChild(target); }
+    });
+
+  </script>
+</body>
+</html>
