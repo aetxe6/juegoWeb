@@ -2,19 +2,37 @@
 <html lang="es">
 <head>
 <meta charset="utf-8" />
-<title>Juego 10x10 Monigotes con Partículas</title>
+<title>Juego 5x5 Monigotes con Partículas y Fondo</title>
 <style>
- body{background:#0f172a;color:#fff;font-family:Arial;margin:0;padding:20px;overflow:hidden;}
- #grid{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;margin-top:20px;}
- .mon{width:40px;height:40px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;cursor:grab;}
- .slot{width:40px;height:40px;border:1px dashed #555;border-radius:6px;}
- #win{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:60px;font-weight:bold;color:#4ade80;opacity:0;pointer-events:none;transition:opacity 0.8s;z-index:10;}
+ body{
+   background: radial-gradient(circle at center, #1e293b, #0f172a 70%);
+   color:#fff;font-family:Arial;margin:0;padding:20px;overflow:hidden;
+ }
+ #grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:20px;}
+ .mon{
+   width:60px;height:60px;border-radius:12px;
+   display:flex;align-items:center;justify-content:center;font-size:14px;cursor:grab;
+   box-shadow:0 6px 12px rgba(0,0,0,0.5);
+   background:linear-gradient(135deg, rgba(255,255,255,0.2), rgba(0,0,0,0.2));
+   position:relative;overflow:hidden;
+   font-weight:bold;
+ }
+ .slot{
+   width:60px;height:60px;border:1px dashed #555;border-radius:12px;
+   box-shadow:0 3px 6px rgba(0,0,0,0.4);
+   background:rgba(255,255,255,0.05);
+ }
+ #win{
+   position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;
+   font-size:80px;font-weight:bold;color:#4ade80;opacity:0;pointer-events:none;transition:opacity 0.8s;z-index:10;
+   text-shadow:0 0 20px #4ade80;
+ }
  #win.show{opacity:1;}
- .particle{position:fixed;width:8px;height:8px;border-radius:50%;pointer-events:none;z-index:20;}
+ .particle{position:fixed;width:10px;height:10px;border-radius:50%;pointer-events:none;z-index:20;}
 </style>
 </head>
 <body>
-<h1>Ordena los 100 monigotes • 5 niveles</h1>
+<h1>Ordena los 25 monigotes • 5 niveles</h1>
 <div>Nivel: <span id="level">1</span> • Puntos: <span id="score">0</span></div>
 <div>Tiempo: <span id="timer">00:00</span></div>
 <button id="reset">Reiniciar nivel</button>
@@ -25,7 +43,7 @@
 let level=1;
 let totalLevels=5;
 let score=0;
-let items=100;
+let items=25;
 let grid=document.getElementById('grid');
 let win=document.getElementById('win');
 let timerEl=document.getElementById('timer');
@@ -35,7 +53,7 @@ function startTimer(){clearInterval(timer);seconds=0;timer=setInterval(()=>{seco
 function updateTimer(){let m=String(Math.floor(seconds/60)).padStart(2,'0');let s=String(seconds%60).padStart(2,'0');timerEl.textContent=m+":"+s;}
 
 function createParticles(){
- for(let i=0;i<120;i++){
+ for(let i=0;i<80;i++){
    let p=document.createElement('div');
    p.className='particle';
    p.style.background=`hsl(${Math.random()*360},80%,60%)`;
@@ -43,10 +61,10 @@ function createParticles(){
    p.style.top=window.innerHeight/2+'px';
    document.body.appendChild(p);
    let angle=Math.random()*2*Math.PI;
-   let speed=4+Math.random()*6;
+   let speed=4+Math.random()*4;
    let vx=Math.cos(angle)*speed;
    let vy=Math.sin(angle)*speed;
-   let life=60+Math.random()*30;
+   let life=50+Math.random()*30;
    let frame=0;
    function animate(){
      if(frame++>life){p.remove();return;}
@@ -67,7 +85,7 @@ function generate(level){
  let color=palette[(level-1)%palette.length];
  let arr=[...Array(items).keys()].map(x=>({id:x+1,size:x+1,color}));
 
- for(let i=0;i<level*300;i++){let a=Math.floor(Math.random()*items);let b=Math.floor(Math.random()*items);[arr[a],arr[b]]=[arr[b],arr[a]];}
+ for(let i=0;i<level*150;i++){let a=Math.floor(Math.random()*items);let b=Math.floor(Math.random()*items);[arr[a],arr[b]]=[arr[b],arr[a]];}
 
  arr.forEach(o=>{
    let d=document.createElement('div');
