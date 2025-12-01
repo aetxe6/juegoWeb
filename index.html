@@ -2,16 +2,17 @@
 <html lang="es">
 <head>
 <meta charset="utf-8" />
-<title>Juego 5x5 Monigotes con Partículas y Fondo</title>
+<title>Juego 5x5 Monigotes por Tamaño</title>
 <style>
  body{
    background: radial-gradient(circle at center, #1e293b, #0f172a 70%);
    color:#fff;font-family:Arial;margin:0;padding:20px;overflow:hidden;
  }
- #grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:20px;}
+ #grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:20px;min-height:350px;}
+ #pool{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;justify-content:center;}
  .mon{
-   width:60px;height:60px;border-radius:12px;
-   display:flex;align-items:center;justify-content:center;font-size:14px;cursor:grab;
+   width:40px;border-radius:12px;
+   display:flex;align-items:flex-end;justify-content:center;font-size:14px;cursor:grab;
    box-shadow:0 6px 12px rgba(0,0,0,0.5);
    background:linear-gradient(135deg, rgba(255,255,255,0.2), rgba(0,0,0,0.2));
    position:relative;overflow:hidden;
@@ -32,11 +33,12 @@
 </style>
 </head>
 <body>
-<h1>Ordena los 25 monigotes • 5 niveles</h1>
+<h1>Ordena los 25 monigotes por tamaño • 5 niveles</h1>
 <div>Nivel: <span id="level">1</span> • Puntos: <span id="score">0</span></div>
 <div>Tiempo: <span id="timer">00:00</span></div>
 <button id="reset">Reiniciar nivel</button>
 <div id="grid"></div>
+<div id="pool"></div>
 <div id="win">WIN!</div>
 
 <script>
@@ -45,6 +47,7 @@ let totalLevels=5;
 let score=0;
 let items=25;
 let grid=document.getElementById('grid');
+let pool=document.getElementById('pool');
 let win=document.getElementById('win');
 let timerEl=document.getElementById('timer');
 let seconds=0; let timer=null;
@@ -81,47 +84,53 @@ function createParticles(){
 
 function generate(level){
  grid.innerHTML="";
+ pool.innerHTML="";
  let palette=["#38bdf8","#f472b6","#4ade80","#facc15","#fb7185"]; 
  let color=palette[(level-1)%palette.length];
- let arr=[...Array(items).keys()].map(x=>({id:x+1,size:x+1,color}));
+ let monigotes=[];
+ for(let i=1;i<=items;i++){
+   monigotes.push({id:i,size:10+Math.random()*80,color});
+ }
 
- for(let i=0;i<level*150;i++){let a=Math.floor(Math.random()*items);let b=Math.floor(Math.random()*items);[arr[a],arr[b]]=[arr[b],arr[a]];}
-
- arr.forEach(o=>{
-   let d=document.createElement('div');
-   d.className='mon';
-   d.style.background=o.color;
-   d.style.transition='transform .2s';
-   d.onmouseover=()=>d.style.transform='scale(1.2)';
-   d.onmouseleave=()=>d.style.transform='scale(1)';
-   d.draggable=true;
-   d.textContent=o.size;
-   d.dataset.size=o.size;
-   d.addEventListener('dragstart',e=>{e.dataTransfer.setData('id',o.size);});
-
+ // crear slots en la matriz
+ for(let i=0;i<items;i++){
    let slot=document.createElement('div');
    slot.className='slot';
    slot.addEventListener('dragover',e=>e.preventDefault());
    slot.addEventListener('drop',e=>{
      let id=e.dataTransfer.getData('id');
-     let existing=slot.querySelector('.mon');
-     if(existing) grid.appendChild(existing);
-     let node=[...grid.querySelectorAll('.mon')].find(n=>n.dataset.size==id);
-     slot.appendChild(node);
-     check();
+     let node=pool.querySelector(`[data-id='${id}']`);
+     if(node){
+       let existing=slot.querySelector('.mon');
+       if(existing) pool.appendChild(existing);
+       slot.appendChild(node);
+       check();
+     }
    });
    grid.appendChild(slot);
-   grid.appendChild(d);
+ }
+
+ // pool de monigotes desordenados
+ monigotes.sort(()=>Math.random()-0.5).forEach(o=>{
+   let d=document.createElement('div');
+   d.className='mon';
+   d.style.height=o.size+'px';
+   d.style.background=o.color;
+   d.draggable=true;
+   d.dataset.id=o.id;
+   d.addEventListener('dragstart',e=>{e.dataTransfer.setData('id',o.id);});
+   pool.appendChild(d);
  });
+
  startTimer();
 }
 
 function check(){
  let slots=[...grid.querySelectorAll('.slot')];
  if(slots.every(s=>s.firstChild)){
-   let nums=slots.map(s=>Number(s.firstChild.dataset.size));
-   let sorted=[...nums].sort((a,b)=>a-b);
-   if(JSON.stringify(nums)===JSON.stringify(sorted)){
+   let heights=slots.map(s=>parseFloat(s.firstChild.style.height));
+   let sorted=[...heights].sort((a,b)=>a-b);
+   if(JSON.stringify(heights)===JSON.stringify(sorted)){
      score += Math.max(0, 500 - seconds*2);
      document.getElementById('score').textContent=score;
      clearInterval(timer);
