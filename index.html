@@ -4,75 +4,69 @@
 <meta charset="UTF-8">
 <title>Rompecabezas por niveles</title>
 <style>
-    body {
-        margin:0;
-        font-family: Arial, sans-serif;
-        background:#111;
-        color:white;
-        display:flex;
-        flex-direction:column;
-        justify-content:center;
-        align-items:center;
-        height:100vh;
-        overflow:hidden;
-    }
+body {
+    margin:0;
+    font-family: Arial, sans-serif;
+    background:#111;
+    color:white;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    overflow:hidden;
+}
 
-    #pantalla-carga {
-        position:absolute;
-        top:0; left:0;
-        width:100%; height:100%;
-        background:black;
-        color:white;
-        display:flex;
-        justify-content:center;
-        align-items:center;
-        z-index:10;
-        font-size:2em;
-        transition: opacity 1s;
-    }
+#pantalla-carga {
+    position:absolute;
+    top:0; left:0;
+    width:100%; height:100%;
+    background:black;
+    color:white;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    z-index:10;
+    font-size:2em;
+    transition: opacity 1s;
+}
 
-    #upload {
-        padding:15px 25px;
-        background:#444;
-        border:2px dashed #888;
-        cursor:pointer;
-        font-size:18px;
-        color:white;
-        border-radius:10px;
-        margin-bottom:20px;
-    }
-    #upload:hover {
-        background:#555;
-        border-color:white;
-    }
+#upload {
+    padding:15px 25px;
+    background:#444;
+    border:2px dashed #888;
+    cursor:pointer;
+    font-size:18px;
+    color:white;
+    border-radius:10px;
+    margin-bottom:20px;
+}
+#upload:hover { background:#555; border-color:white; }
 
-    #timer {
-        font-size:24px;
-        margin:10px;
-    }
+#timer {
+    font-size:24px;
+    margin:10px;
+}
 
-    #canvas {
-        border:2px solid white;
-        cursor:pointer;
-        max-width:70vw;
-        max-height:70vh;
-        display:block;
-    }
+#canvas {
+    border:2px solid white;
+    cursor:pointer;
+    max-width:50vw;
+    max-height:50vh;
+    display:block;
+}
 
-    #botones {
-        display:none;
-        margin-top:20px;
-    }
+#botones { display:none; margin-top:20px; }
 
-    button {
-        padding:10px 20px;
-        background:#333;
-        color:white;
-        border:none;
-        cursor:pointer;
-        font-size:16px;
-    }
-    button:hover { background:#555; }
+button {
+    padding:10px 20px;
+    background:#333;
+    color:white;
+    border:none;
+    cursor:pointer;
+    font-size:16px;
+}
+button:hover { background:#555; }
 </style>
 </head>
 <body>
@@ -99,6 +93,7 @@ let img = new Image();
 let piezas = [];
 let size = 4;
 let piezaSize = 0;
+let nivel = 1;
 
 let segundos = 0;
 let intervalo = null;
@@ -111,11 +106,7 @@ setTimeout(() => {
     setTimeout(() => document.getElementById("pantalla-carga").style.display="none", 1000);
 }, 2000);
 
-
-/* ============================ */
-/* CARGAR IMAGEN                */
-/* ============================ */
-
+/* CARGAR IMAGEN */
 upload.addEventListener("change", e => {
     let file = e.target.files[0];
     if (!file) return;
@@ -128,238 +119,163 @@ upload.addEventListener("change", e => {
     reader.readAsDataURL(file);
 });
 
-
-/* ============================ */
-/* INICIAR JUEGO                */
-/* ============================ */
-
+/* INICIAR JUEGO */
 function iniciarJuego() {
 
-    let maxW = window.innerWidth * 0.7;
-    let maxH = window.innerHeight * 0.7;
+    // Primer nivel: imagen original
+    if(nivel === 1){
+        let maxW = window.innerWidth * 0.5;
+        let maxH = window.innerHeight * 0.5;
+        let ratio = Math.min(maxW / img.width, maxH / img.height);
+        canvas.width = img.width * ratio;
+        canvas.height = img.height * ratio;
 
-    let ratio = Math.min(maxW / img.width, maxH / img.height);
+        // Crear pieza única para primer nivel
+        piezas = [{
+            xOriginal:0, yOriginal:0,
+            x:0, y:0
+        }];
+        piezaSize = canvas.width;
 
-    canvas.width = img.width * ratio;
-    canvas.height = img.height * ratio;
-
-    piezaSize = canvas.width / size;
-
-    /* 1️⃣ Dibujar imagen completa ordenada */
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-    /* 2️⃣ Después de 800 ms, mezclar y empezar */
-    setTimeout(() => {
-        generarPiezasDesordenadas();
-        iniciarTimer();
+        // Mezclar ligeramente para hacer drag&drop divertido
+        arrastrando = null;
         dibujar();
+        iniciarTimer();
 
         canvas.addEventListener("mousedown", startDrag);
         canvas.addEventListener("mousemove", onDrag);
         canvas.addEventListener("mouseup", endDrag);
 
-    }, 800);
+    } else {
+        // niveles posteriores
+        let maxW = window.innerWidth * 0.5;
+        let maxH = window.innerHeight * 0.5;
+        let ratio = Math.min(maxW / img.width, maxH / img.height);
+        canvas.width = img.width * ratio;
+        canvas.height = img.height * ratio;
+        piezaSize = canvas.width / size;
+        generarPiezasDesordenadas();
+        dibujar();
+        iniciarTimer();
+
+        canvas.addEventListener("mousedown", startDrag);
+        canvas.addEventListener("mousemove", onDrag);
+        canvas.addEventListener("mouseup", endDrag);
+    }
 }
 
-
-/* ============================ */
-/* DESORDENAR LAS PIEZAS       */
-/* ============================ */
-
+/* GENERAR PIEZAS DESORDENADAS */
 function generarPiezasDesordenadas() {
     piezas = [];
-
-    // Generar piezas ordenadas
-    for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-            piezas.push({
-                xOriginal: x,
-                yOriginal: y,
-                x: x,
-                y: y
-            });
+    for(let y=0;y<size;y++){
+        for(let x=0;x<size;x++){
+            piezas.push({xOriginal:x, yOriginal:y, x:x, y:y});
         }
     }
-
-    // Mezclar aleatoriamente
-    piezas.sort(() => Math.random() - 0.5);
-
-    // Reasignar posiciones mezcladas
-    for (let i = 0; i < piezas.length; i++) {
-        piezas[i].x = i % size;
-        piezas[i].y = Math.floor(i / size);
+    piezas.sort(()=>Math.random()-0.5);
+    for(let i=0;i<piezas.length;i++){
+        piezas[i].x = i%size;
+        piezas[i].y = Math.floor(i/size);
     }
 }
 
-
-/* ============================ */
-/* TIMER                        */
-/* ============================ */
-
-function iniciarTimer() {
-    if (intervalo) clearInterval(intervalo);
-    segundos = 0;
+/* TIMER */
+function iniciarTimer(){
+    if(intervalo) clearInterval(intervalo);
+    segundos=0;
     actualizarTimer();
-    intervalo = setInterval(() => {
+    intervalo=setInterval(()=>{
         segundos++;
         actualizarTimer();
-    }, 1000);
+    },1000);
 }
 
-function actualizarTimer() {
-    let m = Math.floor(segundos / 60);
-    let s = segundos % 60;
-    document.getElementById("timer").textContent =
-        `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+function actualizarTimer(){
+    let m = Math.floor(segundos/60);
+    let s = segundos%60;
+    document.getElementById("timer").textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
 
-
-/* ============================ */
-/* DIBUJAR                     */
-/* ============================ */
-
-function dibujar() {
+/* DIBUJAR PIEZAS */
+function dibujar(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
-
-    ctx.font = `${piezaSize * 0.35}px Arial bold`;
+    ctx.font = `${piezaSize*0.2}px Arial bold`;
     ctx.textAlign = "right";
     ctx.textBaseline = "bottom";
-    ctx.fillStyle = "white";
-    ctx.strokeStyle = "black";
-    ctx.lineWidth = 4;
+    ctx.fillStyle="white";
+    ctx.strokeStyle="black";
+    ctx.lineWidth=3;
 
-    for (let p of piezas) {
-
-        if (p === arrastrando) continue;
-
-        // DIBUJAR TROZO DE IMAGEN
-        ctx.drawImage(
-            img,
-            p.xOriginal * piezaSize, p.yOriginal * piezaSize,
-            piezaSize, piezaSize,
-            p.x * piezaSize, p.y * piezaSize,
-            piezaSize, piezaSize
-        );
-
-        // CALCULAR NÚMERO REAL
-        let num = p.yOriginal * size + p.xOriginal + 1;
-
-        // ESQUINA INFERIOR DERECHA
-        let x = p.x * piezaSize + piezaSize - 5;
-        let y = p.y * piezaSize + piezaSize - 5;
-
-        ctx.strokeText(num, x, y);
-        ctx.fillText(num, x, y);
+    for(let p of piezas){
+        if(p===arrastrando) continue;
+        ctx.drawImage(img, p.xOriginal*piezaSize, p.yOriginal*piezaSize, piezaSize, piezaSize,
+                      p.x*piezaSize, p.y*piezaSize, piezaSize, piezaSize);
+        let num = p.yOriginal*size + p.xOriginal + 1;
+        let x = p.x*piezaSize + piezaSize - 5;
+        let y = p.y*piezaSize + piezaSize - 5;
+        ctx.strokeText(num,x,y);
+        ctx.fillText(num,x,y);
     }
 
-    // DIBUJAR PIEZA ARRASTRADA
-    if (arrastrando) {
+    if(arrastrando){
         ctx.globalAlpha = 0.8;
-
-        ctx.drawImage(
-            img,
-            arrastrando.xOriginal * piezaSize, arrastrando.yOriginal * piezaSize,
-            piezaSize, piezaSize,
-            mouseX - piezaSize/2, mouseY - piezaSize/2,
-            piezaSize, piezaSize
-        );
-
-        ctx.globalAlpha = 1;
-
-        let num = arrastrando.yOriginal * size + arrastrando.xOriginal + 1;
-
-        ctx.strokeText(num, mouseX + piezaSize/2 - 5, mouseY + piezaSize/2 - 5);
-        ctx.fillText(num, mouseX + piezaSize/2 - 5, mouseY + piezaSize/2 - 5);
+        ctx.drawImage(img, arrastrando.xOriginal*piezaSize, arrastrando.yOriginal*piezaSize, piezaSize, piezaSize,
+                      mouseX - piezaSize/2, mouseY - piezaSize/2, piezaSize, piezaSize);
+        ctx.globalAlpha=1;
+        let num = arrastrando.yOriginal*size + arrastrando.xOriginal +1;
+        ctx.strokeText(num, mouseX + piezaSize/2 -5, mouseY + piezaSize/2 -5);
+        ctx.fillText(num, mouseX + piezaSize/2 -5, mouseY + piezaSize/2 -5);
     }
 }
 
-
-/* ============================ */
-/* DRAG & DROP                  */
-/* ============================ */
-
-function startDrag(ev) {
-    let x = Math.floor(ev.offsetX / piezaSize);
-    let y = Math.floor(ev.offsetY / piezaSize);
-
-    arrastrando = piezas.find(p => p.x === x && p.y === y);
+/* DRAG & DROP */
+function startDrag(ev){
+    let x = Math.floor(ev.offsetX/piezaSize);
+    let y = Math.floor(ev.offsetY/piezaSize);
+    arrastrando = piezas.find(p=>p.x===x && p.y===y);
 }
 
-function onDrag(ev) {
-    if (!arrastrando) return;
-
-    mouseX = ev.offsetX;
-    mouseY = ev.offsetY;
-
+function onDrag(ev){
+    if(!arrastrando) return;
+    mouseX=ev.offsetX;
+    mouseY=ev.offsetY;
     dibujar();
 }
 
-function endDrag(ev) {
-    if (!arrastrando) return;
-
-    let x = Math.floor(ev.offsetX / piezaSize);
-    let y = Math.floor(ev.offsetY / piezaSize);
-
-    let destino = piezas.find(p => p.x === x && p.y === y);
-
-    if (destino && destino !== arrastrando) {
-        let temp = { x: arrastrando.x, y: arrastrando.y };
+function endDrag(ev){
+    if(!arrastrando) return;
+    let x = Math.floor(ev.offsetX/piezaSize);
+    let y = Math.floor(ev.offsetY/piezaSize);
+    let destino = piezas.find(p=>p.x===x && p.y===y);
+    if(destino && destino!==arrastrando){
+        let temp = {x:arrastrando.x, y:arrastrando.y};
         arrastrando.x = destino.x;
         arrastrando.y = destino.y;
         destino.x = temp.x;
         destino.y = temp.y;
     }
-
-    arrastrando = null;
+    arrastrando=null;
     dibujar();
     comprobar();
 }
 
-
-/* ============================ */
-/* COMPROBAR COMPLETADO        */
-/* ============================ */
-
-function comprobar() {
-    let correcto = piezas.every(p => p.x === p.xOriginal && p.y === p.yOriginal);
-    if (correcto) {
+/* COMPROBAR COMPLETADO */
+function comprobar(){
+    let correcto = piezas.every(p=>p.x===p.xOriginal && p.y===p.yOriginal);
+    if(correcto){
         clearInterval(intervalo);
         document.getElementById("botones").style.display="block";
     }
 }
 
-
-/* ============================ */
-/* SIGUIENTE NIVEL             */
-/* ============================ */
-
-nivelBtn.addEventListener("click", subdividir);
-
-function subdividir() {
-
-    clearInterval(intervalo);
-    iniciarTimer();
-
-    piezaSize = piezaSize / 4;
-    let nuevas = [];
-    
-    for (let p of piezas) {
-        for (let y = 0; y < 4; y++) {
-            for (let x = 0; x < 4; x++) {
-                nuevas.push({
-                    xOriginal: p.xOriginal * 4 + x,
-                    yOriginal: p.yOriginal * 4 + y,
-                    x: p.x * 4 + x,
-                    y: p.y * 4 + y
-                });
-            }
-        }
-    }
-
-    piezas = nuevas.sort(() => Math.random() - 0.5);
+/* SIGUIENTE NIVEL */
+nivelBtn.addEventListener("click",()=>{
+    nivel++;
+    size=4;
+    piezaSize=canvas.width/size;
+    iniciarJuego();
     document.getElementById("botones").style.display="none";
-    dibujar();
-}
+});
 </script>
 
 </body>
