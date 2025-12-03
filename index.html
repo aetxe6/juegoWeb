@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Rompecabezas por niveles</title>
+<title>Rompecabezas por niveles (Drag & Drop)</title>
 <style>
     body {
         margin:0;
@@ -31,11 +31,29 @@
         transition: opacity 1s;
     }
 
-    /* ======== CANVAS CENTRADO ======== */
+    #upload {
+        padding:15px 25px;
+        background:#444;
+        border:2px dashed #888;
+        cursor:pointer;
+        font-size:18px;
+        color:white;
+        border-radius:10px;
+        margin-bottom:20px;
+    }
+    #upload:hover {
+        background:#555;
+        border-color:white;
+    }
+
+    #timer {
+        font-size:24px;
+        margin:10px;
+    }
+
     #canvas {
         border:2px solid white;
         cursor:pointer;
-        margin-top:20px;
         max-width:70vw;
         max-height:70vh;
         display:block;
@@ -55,37 +73,13 @@
         font-size:16px;
     }
     button:hover { background:#555; }
-
-    /* ====== ESTILO PARA EL INPUT ====== */
-    #upload {
-        padding:15px 25px;
-        background:#444;
-        border:2px dashed #888;
-        cursor:pointer;
-        font-size:18px;
-        color:white;
-        border-radius:10px;
-        margin-bottom:20px;
-    }
-
-    #upload:hover {
-        background:#555;
-        border-color:white;
-    }
-
-    /* TIMER */
-    #timer {
-        font-size:24px;
-        margin-top:10px;
-    }
-
 </style>
 </head>
 <body>
 
 <div id="pantalla-carga">Cargando próximo juego...</div>
 
-<input type="file" id="upload" accept="image/*" value="Inserte imagen aquí.">
+<input type="file" id="upload" accept="image/*">
 
 <div id="timer">00:00</div>
 
@@ -105,16 +99,22 @@ let img = new Image();
 let piezas = [];
 let size = 4;
 let piezaSize = 0;
-let dragIndex = null;
 
 let segundos = 0;
 let intervalo = null;
+
+let arrastrando = null;
+let mouseX = 0, mouseY = 0;
 
 setTimeout(() => {
     document.getElementById("pantalla-carga").style.opacity = 0;
     setTimeout(() => document.getElementById("pantalla-carga").style.display="none", 1000);
 }, 2000);
 
+
+/* ============================ */
+/* CARGAR IMAGEN                */
+/* ============================ */
 
 upload.addEventListener("change", e => {
     let file = e.target.files[0];
@@ -128,6 +128,10 @@ upload.addEventListener("change", e => {
     reader.readAsDataURL(file);
 });
 
+
+/* ============================ */
+/* INICIAR JUEGO                */
+/* ============================ */
 
 function iniciarJuego() {
 
@@ -143,17 +147,20 @@ function iniciarJuego() {
 
     generarPiezasDesordenadas();
     iniciarTimer();
-    canvas.addEventListener("click", clickPieza);
     dibujar();
+
+    canvas.addEventListener("mousedown", startDrag);
+    canvas.addEventListener("mousemove", onDrag);
+    canvas.addEventListener("mouseup", endDrag);
 }
 
 
-/* ============================================================== */
-/* DESORDENAR DESDE EL PRINCIPIO                                 */
-/* ============================================================== */
+/* ============================ */
+/* DESORDENAR DESDE EL PRINCIPIO */
+/* ============================ */
+
 function generarPiezasDesordenadas() {
     piezas = [];
-
     for (let y = 0; y < size; y++) {
         for (let x = 0; x < size; x++) {
             piezas.push({
@@ -168,9 +175,10 @@ function generarPiezasDesordenadas() {
 }
 
 
-/* ============================================================== */
-/* TIMER                                                          */
-/* ============================================================== */
+/* ============================ */
+/* TIMER                        */
+/* ============================ */
+
 function iniciarTimer() {
     if (intervalo) clearInterval(intervalo);
     segundos = 0;
@@ -184,18 +192,23 @@ function iniciarTimer() {
 function actualizarTimer() {
     let m = Math.floor(segundos / 60);
     let s = segundos % 60;
-
     document.getElementById("timer").textContent =
         `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
 
 
-/* ============================================================== */
-/* PINTAR ROMPECABEZAS                                           */
-/* ============================================================== */
+/* ============================ */
+/* PINTAR                       */
+/* ============================ */
+
 function dibujar() {
     ctx.clearRect(0,0,canvas.width,canvas.height);
+
     for (let p of piezas) {
+
+        // la pieza arrastrada se dibuja al final
+        if (p === arrastrando) continue;
+
         ctx.drawImage(
             img,
             p.xOriginal * piezaSize, p.yOriginal * piezaSize,
@@ -204,41 +217,71 @@ function dibujar() {
             piezaSize, piezaSize
         );
     }
-}
 
-
-/* ============================================================== */
-/* INTERCAMBIAR PIEZAS                                           */
-/* ============================================================== */
-function clickPieza(ev) {
-
-    let x = Math.floor(ev.offsetX / piezaSize);
-    let y = Math.floor(ev.offsetY / piezaSize);
-
-    let index = piezas.findIndex(p => p.x === x && p.y === y);
-
-    if (dragIndex === null) {
-        dragIndex = index;
-    } else {
-        let temp = { x: piezas[dragIndex].x, y: piezas[dragIndex].y };
-        piezas[dragIndex].x = piezas[index].x;
-        piezas[dragIndex].y = piezas[index].y;
-        piezas[index].x = temp.x;
-        piezas[index].y = temp.y;
-
-        dragIndex = null;
-        dibujar();
-        comprobar();
+    // DIBUJAR PIEZA QUE ESTAMOS ARRASTRANDO
+    if (arrastrando) {
+        ctx.globalAlpha = 0.8;
+        ctx.drawImage(
+            img,
+            arrastrando.xOriginal * piezaSize, arrastrando.yOriginal * piezaSize,
+            piezaSize, piezaSize,
+            mouseX - piezaSize/2, mouseY - piezaSize/2,
+            piezaSize, piezaSize
+        );
+        ctx.globalAlpha = 1;
     }
 }
 
 
-/* ============================================================== */
-/* COMPROBAR COMPLETADO                                          */
-/* ============================================================== */
+/* ============================ */
+/* DRAG & DROP                  */
+/* ============================ */
+
+function startDrag(ev) {
+    let x = Math.floor(ev.offsetX / piezaSize);
+    let y = Math.floor(ev.offsetY / piezaSize);
+
+    arrastrando = piezas.find(p => p.x === x && p.y === y);
+}
+
+function onDrag(ev) {
+    if (!arrastrando) return;
+
+    mouseX = ev.offsetX;
+    mouseY = ev.offsetY;
+
+    dibujar();
+}
+
+function endDrag(ev) {
+    if (!arrastrando) return;
+
+    let x = Math.floor(ev.offsetX / piezaSize);
+    let y = Math.floor(ev.offsetY / piezaSize);
+
+    let destino = piezas.find(p => p.x === x && p.y === y);
+
+    if (destino && destino !== arrastrando) {
+        // intercambiar posiciones
+        let temp = { x: arrastrando.x, y: arrastrando.y };
+        arrastrando.x = destino.x;
+        arrastrando.y = destino.y;
+        destino.x = temp.x;
+        destino.y = temp.y;
+    }
+
+    arrastrando = null;
+    dibujar();
+    comprobar();
+}
+
+
+/* ============================ */
+/* COMPROBAR COMPLETADO        */
+/* ============================ */
+
 function comprobar() {
     let correcto = piezas.every(p => p.x === p.xOriginal && p.y === p.yOriginal);
-
     if (correcto) {
         clearInterval(intervalo);
         document.getElementById("botones").style.display="block";
@@ -246,10 +289,11 @@ function comprobar() {
 }
 
 
-/* ============================================================== */
-/* SIGUIENTE NIVEL                                               */
-/* ============================================================== */
-nivelBtn.addEventListener("click", () => subdividir());
+/* ============================ */
+/* SIGUIENTE NIVEL             */
+/* ============================ */
+
+nivelBtn.addEventListener("click", subdividir);
 
 function subdividir() {
 
