@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Rompecabezas por niveles (Drag & Drop)</title>
+<title>Rompecabezas por niveles (vista previa + mezcla)</title>
 <style>
     body {
         margin:0;
@@ -145,13 +145,20 @@ function iniciarJuego() {
 
     piezaSize = canvas.width / size;
 
-    generarPiezasDesordenadas();
-    iniciarTimer();
-    dibujar();
+    /* 1️⃣ Dibujar imagen completa ordenada */
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-    canvas.addEventListener("mousedown", startDrag);
-    canvas.addEventListener("mousemove", onDrag);
-    canvas.addEventListener("mouseup", endDrag);
+    /* 2️⃣ Después de 800 ms, mezclar y empezar */
+    setTimeout(() => {
+        generarPiezasDesordenadas();
+        iniciarTimer();
+        dibujar();
+
+        canvas.addEventListener("mousedown", startDrag);
+        canvas.addEventListener("mousemove", onDrag);
+        canvas.addEventListener("mouseup", endDrag);
+
+    }, 800);
 }
 
 
@@ -206,7 +213,6 @@ function dibujar() {
 
     for (let p of piezas) {
 
-        // la pieza arrastrada se dibuja al final
         if (p === arrastrando) continue;
 
         ctx.drawImage(
@@ -218,7 +224,6 @@ function dibujar() {
         );
     }
 
-    // DIBUJAR PIEZA QUE ESTAMOS ARRASTRANDO
     if (arrastrando) {
         ctx.globalAlpha = 0.8;
         ctx.drawImage(
@@ -262,7 +267,6 @@ function endDrag(ev) {
     let destino = piezas.find(p => p.x === x && p.y === y);
 
     if (destino && destino !== arrastrando) {
-        // intercambiar posiciones
         let temp = { x: arrastrando.x, y: arrastrando.y };
         arrastrando.x = destino.x;
         arrastrando.y = destino.y;
