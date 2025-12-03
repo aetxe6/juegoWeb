@@ -31,10 +31,14 @@
         transition: opacity 1s;
     }
 
+    /* ======== CANVAS CENTRADO ======== */
     #canvas {
         border:2px solid white;
         cursor:pointer;
         margin-top:20px;
+        max-width:70vw;
+        max-height:70vh;
+        display:block;
     }
 
     #botones {
@@ -62,12 +66,17 @@
         color:white;
         border-radius:10px;
         margin-bottom:20px;
-        text-align:center;
     }
 
     #upload:hover {
         background:#555;
         border-color:white;
+    }
+
+    /* TIMER */
+    #timer {
+        font-size:24px;
+        margin-top:10px;
     }
 
 </style>
@@ -76,11 +85,9 @@
 
 <div id="pantalla-carga">Cargando próximo juego...</div>
 
-<!-- BOTÓN DE INSERTAR IMAGEN -->
-<label id="upload-label">
-    <input type="file" id="upload" accept="image/*">
-    Inserte imagen aquí.
-</label>
+<input type="file" id="upload" accept="image/*" value="Inserte imagen aquí.">
+
+<div id="timer">00:00</div>
 
 <canvas id="canvas"></canvas>
 
@@ -96,14 +103,18 @@ let nivelBtn = document.getElementById("nivel-btn");
 
 let img = new Image();
 let piezas = [];
-let size = 4;     
+let size = 4;
 let piezaSize = 0;
 let dragIndex = null;
+
+let segundos = 0;
+let intervalo = null;
 
 setTimeout(() => {
     document.getElementById("pantalla-carga").style.opacity = 0;
     setTimeout(() => document.getElementById("pantalla-carga").style.display="none", 1000);
 }, 2000);
+
 
 upload.addEventListener("change", e => {
     let file = e.target.files[0];
@@ -117,20 +128,32 @@ upload.addEventListener("change", e => {
     reader.readAsDataURL(file);
 });
 
+
 function iniciarJuego() {
-    canvas.width = img.width;
-    canvas.height = img.height;
+
+    let maxW = window.innerWidth * 0.7;
+    let maxH = window.innerHeight * 0.7;
+
+    let ratio = Math.min(maxW / img.width, maxH / img.height);
+
+    canvas.width = img.width * ratio;
+    canvas.height = img.height * ratio;
+
     piezaSize = canvas.width / size;
 
-    document.getElementById("upload-label").style.display = "none";
-
-    generarPiezas();
+    generarPiezasDesordenadas();
+    iniciarTimer();
     canvas.addEventListener("click", clickPieza);
     dibujar();
 }
 
-function generarPiezas() {
+
+/* ============================================================== */
+/* DESORDENAR DESDE EL PRINCIPIO                                 */
+/* ============================================================== */
+function generarPiezasDesordenadas() {
     piezas = [];
+
     for (let y = 0; y < size; y++) {
         for (let x = 0; x < size; x++) {
             piezas.push({
@@ -144,6 +167,32 @@ function generarPiezas() {
     piezas.sort(() => Math.random() - 0.5);
 }
 
+
+/* ============================================================== */
+/* TIMER                                                          */
+/* ============================================================== */
+function iniciarTimer() {
+    if (intervalo) clearInterval(intervalo);
+    segundos = 0;
+    actualizarTimer();
+    intervalo = setInterval(() => {
+        segundos++;
+        actualizarTimer();
+    }, 1000);
+}
+
+function actualizarTimer() {
+    let m = Math.floor(segundos / 60);
+    let s = segundos % 60;
+
+    document.getElementById("timer").textContent =
+        `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+
+/* ============================================================== */
+/* PINTAR ROMPECABEZAS                                           */
+/* ============================================================== */
 function dibujar() {
     ctx.clearRect(0,0,canvas.width,canvas.height);
     for (let p of piezas) {
@@ -157,7 +206,12 @@ function dibujar() {
     }
 }
 
+
+/* ============================================================== */
+/* INTERCAMBIAR PIEZAS                                           */
+/* ============================================================== */
 function clickPieza(ev) {
+
     let x = Math.floor(ev.offsetX / piezaSize);
     let y = Math.floor(ev.offsetY / piezaSize);
 
@@ -178,14 +232,30 @@ function clickPieza(ev) {
     }
 }
 
+
+/* ============================================================== */
+/* COMPROBAR COMPLETADO                                          */
+/* ============================================================== */
 function comprobar() {
     let correcto = piezas.every(p => p.x === p.xOriginal && p.y === p.yOriginal);
-    if (correcto) document.getElementById("botones").style.display="block";
+
+    if (correcto) {
+        clearInterval(intervalo);
+        document.getElementById("botones").style.display="block";
+    }
 }
 
+
+/* ============================================================== */
+/* SIGUIENTE NIVEL                                               */
+/* ============================================================== */
 nivelBtn.addEventListener("click", () => subdividir());
 
 function subdividir() {
+
+    clearInterval(intervalo);
+    iniciarTimer();
+
     piezaSize = piezaSize / 4;
     let nuevas = [];
     
@@ -201,6 +271,7 @@ function subdividir() {
             }
         }
     }
+
     piezas = nuevas.sort(() => Math.random() - 0.5);
     document.getElementById("botones").style.display="none";
     dibujar();
