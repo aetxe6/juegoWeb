@@ -10,6 +10,7 @@
         background:#111;
         color:white;
         display:flex;
+        flex-direction:column;
         justify-content:center;
         align-items:center;
         height:100vh;
@@ -33,13 +34,12 @@
     #canvas {
         border:2px solid white;
         cursor:pointer;
+        margin-top:20px;
     }
 
     #botones {
-        position:absolute;
-        top:20px; left:20px;
-        display:flex;
-        gap:10px;
+        display:none;
+        margin-top:20px;
     }
 
     button {
@@ -48,21 +48,45 @@
         color:white;
         border:none;
         cursor:pointer;
+        font-size:16px;
     }
     button:hover { background:#555; }
+
+    /* ====== ESTILO PARA EL INPUT ====== */
+    #upload {
+        padding:15px 25px;
+        background:#444;
+        border:2px dashed #888;
+        cursor:pointer;
+        font-size:18px;
+        color:white;
+        border-radius:10px;
+        margin-bottom:20px;
+        text-align:center;
+    }
+
+    #upload:hover {
+        background:#555;
+        border-color:white;
+    }
+
 </style>
 </head>
 <body>
 
 <div id="pantalla-carga">Cargando próximo juego...</div>
 
+<!-- BOTÓN DE INSERTAR IMAGEN -->
+<label id="upload-label">
+    <input type="file" id="upload" accept="image/*">
+    Inserte imagen aquí.
+</label>
+
 <canvas id="canvas"></canvas>
 
-<div id="botones" style="display:none;">
+<div id="botones">
     <button id="nivel-btn">Siguiente nivel</button>
 </div>
-
-<input type="file" id="upload" accept="image/*" style="display:none;">
 
 <script>
 let canvas = document.getElementById("canvas");
@@ -72,15 +96,13 @@ let nivelBtn = document.getElementById("nivel-btn");
 
 let img = new Image();
 let piezas = [];
-let size = 4;     // 4x4 = 16 piezas
-let nivel = 1;
+let size = 4;     
 let piezaSize = 0;
 let dragIndex = null;
 
 setTimeout(() => {
     document.getElementById("pantalla-carga").style.opacity = 0;
     setTimeout(() => document.getElementById("pantalla-carga").style.display="none", 1000);
-    upload.click();
 }, 2000);
 
 upload.addEventListener("change", e => {
@@ -100,6 +122,8 @@ function iniciarJuego() {
     canvas.height = img.height;
     piezaSize = canvas.width / size;
 
+    document.getElementById("upload-label").style.display = "none";
+
     generarPiezas();
     canvas.addEventListener("click", clickPieza);
     dibujar();
@@ -117,7 +141,6 @@ function generarPiezas() {
             });
         }
     }
-    // desordenar
     piezas.sort(() => Math.random() - 0.5);
 }
 
@@ -143,7 +166,6 @@ function clickPieza(ev) {
     if (dragIndex === null) {
         dragIndex = index;
     } else {
-        // intercambio
         let temp = { x: piezas[dragIndex].x, y: piezas[dragIndex].y };
         piezas[dragIndex].x = piezas[index].x;
         piezas[dragIndex].y = piezas[index].y;
@@ -158,17 +180,10 @@ function clickPieza(ev) {
 
 function comprobar() {
     let correcto = piezas.every(p => p.x === p.xOriginal && p.y === p.yOriginal);
-
-    if (correcto) {
-        document.getElementById("botones").style.display="block";
-    }
+    if (correcto) document.getElementById("botones").style.display="block";
 }
 
-nivelBtn.addEventListener("click", () => {
-    nivel++;
-    size = 4;      // SIEMPRE 4x4 para cada subdivisión
-    subdividir();
-});
+nivelBtn.addEventListener("click", () => subdividir());
 
 function subdividir() {
     piezaSize = piezaSize / 4;
