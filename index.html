@@ -1,161 +1,196 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<title>Juego 5x5 Monigotes con Caritas</title>
+<meta charset="UTF-8">
+<title>Rompecabezas por niveles</title>
 <style>
- body{
-   background: radial-gradient(circle at center, #1e293b, #0f172a 70%);
-   color:#fff;font-family:Arial;margin:0;padding:20px;overflow:hidden;
- }
- #grid{display:grid;grid-template-columns:repeat(5,1fr);gap:40px;margin-top:20px;min-height:350px;justify-content:center;}
- #pool{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;justify-content:center;}
- .mon{
-   width:40px;border-radius:50%;
-   display:flex;align-items:center;justify-content:center;font-size:14px;cursor:grab;
-   box-shadow:0 6px 12px rgba(0,0,0,0.5);
-   background:linear-gradient(135deg, rgba(255,255,255,0.2), rgba(0,0,0,0.2));
-   position:relative;overflow:hidden;
-   font-weight:bold;
-   flex-direction:column;
- }
- .face{
-   width:60%;height:60%;background:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;color:black;flex-direction:column;}
- .slot{
-   width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,0.5);margin:auto;
- }
- #win{
-   position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;
-   font-size:80px;font-weight:bold;color:#4ade80;opacity:0;pointer-events:none;transition:opacity 0.8s;z-index:10;
-   text-shadow:0 0 20px #4ade80;
- }
- #win.show{opacity:1;}
- .particle{position:fixed;width:10px;height:10px;border-radius:50%;pointer-events:none;z-index:20;}
+    body {
+        margin:0;
+        font-family: Arial, sans-serif;
+        background:#111;
+        color:white;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        height:100vh;
+        overflow:hidden;
+    }
+
+    #pantalla-carga {
+        position:absolute;
+        top:0; left:0;
+        width:100%; height:100%;
+        background:black;
+        color:white;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        z-index:10;
+        font-size:2em;
+        transition: opacity 1s;
+    }
+
+    #canvas {
+        border:2px solid white;
+        cursor:pointer;
+    }
+
+    #botones {
+        position:absolute;
+        top:20px; left:20px;
+        display:flex;
+        gap:10px;
+    }
+
+    button {
+        padding:10px 20px;
+        background:#333;
+        color:white;
+        border:none;
+        cursor:pointer;
+    }
+    button:hover { background:#555; }
 </style>
 </head>
 <body>
-<h1>Ordena los 25 monigotes por tamaño • 5 niveles</h1>
-<div>Nivel: <span id="level">1</span> • Puntos: <span id="score">0</span></div>
-<div>Tiempo: <span id="timer">00:00</span></div>
-<button id="reset">Reiniciar nivel</button>
-<div id="grid"></div>
-<div id="pool"></div>
-<div id="win">WIN!</div>
+
+<div id="pantalla-carga">Cargando próximo juego...</div>
+
+<canvas id="canvas"></canvas>
+
+<div id="botones" style="display:none;">
+    <button id="nivel-btn">Siguiente nivel</button>
+</div>
+
+<input type="file" id="upload" accept="image/*" style="display:none;">
 
 <script>
-let level=1;
-let totalLevels=5;
-let score=0;
-let items=25;
-let grid=document.getElementById('grid');
-let pool=document.getElementById('pool');
-let win=document.getElementById('win');
-let timerEl=document.getElementById('timer');
-let seconds=0; let timer=null;
+let canvas = document.getElementById("canvas");
+let ctx = canvas.getContext("2d");
+let upload = document.getElementById("upload");
+let nivelBtn = document.getElementById("nivel-btn");
 
-function startTimer(){clearInterval(timer);seconds=0;timer=setInterval(()=>{seconds++;updateTimer();},1000);} 
-function updateTimer(){let m=String(Math.floor(seconds/60)).padStart(2,'0');let s=String(seconds%60).padStart(2,'0');timerEl.textContent=m+":"+s;}
+let img = new Image();
+let piezas = [];
+let size = 4;     // 4x4 = 16 piezas
+let nivel = 1;
+let piezaSize = 0;
+let dragIndex = null;
 
-function createParticles(){
- for(let i=0;i<80;i++){
-   let p=document.createElement('div');
-   p.className='particle';
-   p.style.background=`hsl(${Math.random()*360},80%,60%)`;
-   p.style.left=window.innerWidth/2+'px';
-   p.style.top=window.innerHeight/2+'px';
-   document.body.appendChild(p);
-   let angle=Math.random()*2*Math.PI;
-   let speed=4+Math.random()*4;
-   let vx=Math.cos(angle)*speed;
-   let vy=Math.sin(angle)*speed;
-   let life=50+Math.random()*30;
-   let frame=0;
-   function animate(){
-     if(frame++>life){p.remove();return;}
-     let x=parseFloat(p.style.left)+vx;
-     let y=parseFloat(p.style.top)+vy;
-     p.style.left=x+'px';
-     p.style.top=y+'px';
-     p.style.opacity=1-frame/life;
-     requestAnimationFrame(animate);
-   }
-   animate();
- }
+setTimeout(() => {
+    document.getElementById("pantalla-carga").style.opacity = 0;
+    setTimeout(() => document.getElementById("pantalla-carga").style.display="none", 1000);
+    upload.click();
+}, 2000);
+
+upload.addEventListener("change", e => {
+    let file = e.target.files[0];
+    if (!file) return;
+
+    let reader = new FileReader();
+    reader.onload = ev => {
+        img.onload = iniciarJuego;
+        img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+});
+
+function iniciarJuego() {
+    canvas.width = img.width;
+    canvas.height = img.height;
+    piezaSize = canvas.width / size;
+
+    generarPiezas();
+    canvas.addEventListener("click", clickPieza);
+    dibujar();
 }
 
-function generate(level){
- grid.innerHTML="";
- pool.innerHTML="";
- let palette=["#38bdf8","#f472b6","#4ade80","#facc15","#fb7185"]; 
- let color=palette[(level-1)%palette.length];
- let monigotes=[];
- for(let i=1;i<=items;i++){
-   monigotes.push({id:i,size:20+Math.random()*60,color});
- }
-
- // crear slots como puntos
- for(let i=0;i<items;i++){
-   let slot=document.createElement('div');
-   slot.className='slot';
-   slot.addEventListener('dragover',e=>e.preventDefault());
-   slot.addEventListener('drop',e=>{
-     let id=e.dataTransfer.getData('id');
-     let node=pool.querySelector(`[data-id='${id}']`);
-     if(node){
-       let existing=slot.querySelector('.mon');
-       if(existing) pool.appendChild(existing);
-       slot.appendChild(node);
-       check();
-     }
-   });
-   grid.appendChild(slot);
- }
-
- // pool de monigotes con carita
- monigotes.sort(()=>Math.random()-0.5).forEach(o=>{
-   let d=document.createElement('div');
-   d.className='mon';
-   d.style.height=o.size+'px';
-   d.style.width=o.size+'px';
-   d.style.background=o.color;
-   d.draggable=true;
-   d.dataset.id=o.id;
-
-   let face=document.createElement('div');
-   face.className='face';
-   face.innerHTML=':)';
-   d.appendChild(face);
-
-   d.addEventListener('dragstart',e=>{e.dataTransfer.setData('id',o.id);});
-   pool.appendChild(d);
- });
- startTimer();
+function generarPiezas() {
+    piezas = [];
+    for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+            piezas.push({
+                xOriginal: x,
+                yOriginal: y,
+                x: x,
+                y: y
+            });
+        }
+    }
+    // desordenar
+    piezas.sort(() => Math.random() - 0.5);
 }
 
-function check(){
- let slots=[...grid.querySelectorAll('.slot')];
- if(slots.every(s=>s.firstChild)){
-   let heights=slots.map(s=>parseFloat(s.firstChild.style.height));
-   let sorted=[...heights].sort((a,b)=>a-b);
-   if(JSON.stringify(heights)===JSON.stringify(sorted)){
-     score += Math.max(0, 500 - seconds*2);
-     document.getElementById('score').textContent=score;
-     clearInterval(timer);
-     win.classList.add('show');
-     createParticles();
-     let audio=new Audio('https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg'); audio.play();
-     setTimeout(()=>{
-       win.classList.remove('show');
-       if(level<totalLevels){level++;document.getElementById('level').textContent=level;generate(level);} 
-       else alert("¡Has completado los 5 niveles!");
-     },1500);
-   }
- }
+function dibujar() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    for (let p of piezas) {
+        ctx.drawImage(
+            img,
+            p.xOriginal * piezaSize, p.yOriginal * piezaSize,
+            piezaSize, piezaSize,
+            p.x * piezaSize, p.y * piezaSize,
+            piezaSize, piezaSize
+        );
+    }
 }
 
-document.getElementById('reset').onclick=()=>generate(level);
+function clickPieza(ev) {
+    let x = Math.floor(ev.offsetX / piezaSize);
+    let y = Math.floor(ev.offsetY / piezaSize);
 
-generate(level);
+    let index = piezas.findIndex(p => p.x === x && p.y === y);
+
+    if (dragIndex === null) {
+        dragIndex = index;
+    } else {
+        // intercambio
+        let temp = { x: piezas[dragIndex].x, y: piezas[dragIndex].y };
+        piezas[dragIndex].x = piezas[index].x;
+        piezas[dragIndex].y = piezas[index].y;
+        piezas[index].x = temp.x;
+        piezas[index].y = temp.y;
+
+        dragIndex = null;
+        dibujar();
+        comprobar();
+    }
+}
+
+function comprobar() {
+    let correcto = piezas.every(p => p.x === p.xOriginal && p.y === p.yOriginal);
+
+    if (correcto) {
+        document.getElementById("botones").style.display="block";
+    }
+}
+
+nivelBtn.addEventListener("click", () => {
+    nivel++;
+    size = 4;      // SIEMPRE 4x4 para cada subdivisión
+    subdividir();
+});
+
+function subdividir() {
+    piezaSize = piezaSize / 4;
+    let nuevas = [];
+    
+    for (let p of piezas) {
+        for (let y = 0; y < 4; y++) {
+            for (let x = 0; x < 4; x++) {
+                nuevas.push({
+                    xOriginal: p.xOriginal * 4 + x,
+                    yOriginal: p.yOriginal * 4 + y,
+                    x: p.x * 4 + x,
+                    y: p.y * 4 + y
+                });
+            }
+        }
+    }
+    piezas = nuevas.sort(() => Math.random() - 0.5);
+    document.getElementById("botones").style.display="none";
+    dibujar();
+}
 </script>
+
 </body>
 </html>
