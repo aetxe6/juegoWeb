@@ -221,19 +221,18 @@ function actualizarTimer() {
 function dibujar() {
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    ctx.font = `${piezaSize * 0.4}px Arial`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+    ctx.font = `${piezaSize * 0.35}px Arial bold`;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "bottom";
     ctx.fillStyle = "white";
     ctx.strokeStyle = "black";
-    ctx.lineWidth = 3;
-
-    let contador = 1;
+    ctx.lineWidth = 4;
 
     for (let p of piezas) {
 
         if (p === arrastrando) continue;
 
+        // DIBUJAR TROZO DE IMAGEN
         ctx.drawImage(
             img,
             p.xOriginal * piezaSize, p.yOriginal * piezaSize,
@@ -242,15 +241,18 @@ function dibujar() {
             piezaSize, piezaSize
         );
 
-        let cx = p.x * piezaSize + piezaSize / 2;
-        let cy = p.y * piezaSize + piezaSize / 2;
+        // CALCULAR NÚMERO REAL
+        let num = p.yOriginal * size + p.xOriginal + 1;
 
-        ctx.strokeText(contador, cx, cy);
-        ctx.fillText(contador, cx, cy);
+        // ESQUINA INFERIOR DERECHA
+        let x = p.x * piezaSize + piezaSize - 5;
+        let y = p.y * piezaSize + piezaSize - 5;
 
-        contador++;
+        ctx.strokeText(num, x, y);
+        ctx.fillText(num, x, y);
     }
 
+    // DIBUJAR PIEZA ARRASTRADA
     if (arrastrando) {
         ctx.globalAlpha = 0.8;
 
@@ -264,16 +266,10 @@ function dibujar() {
 
         ctx.globalAlpha = 1;
 
-        ctx.strokeText(
-            piezas.indexOf(arrastrando)+1,
-            mouseX,
-            mouseY
-        );
-        ctx.fillText(
-            piezas.indexOf(arrastrando)+1,
-            mouseX,
-            mouseY
-        );
+        let num = arrastrando.yOriginal * size + arrastrando.xOriginal + 1;
+
+        ctx.strokeText(num, mouseX + piezaSize/2 - 5, mouseY + piezaSize/2 - 5);
+        ctx.fillText(num, mouseX + piezaSize/2 - 5, mouseY + piezaSize/2 - 5);
     }
 }
 
